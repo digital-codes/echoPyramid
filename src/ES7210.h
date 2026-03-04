@@ -176,7 +176,37 @@ private:
     I2CBus& _bus;   ///< I2C bus reference
     uint8_t _addr;  ///< I2C device address
 
+    /**
+     * @brief Write a single 8-bit register of the ES7210.
+     *
+     * Sends a register address followed by an 8-bit data value over I2C.
+     *
+     * @param reg Register address to write.
+     * @param val 8-bit value to be written to the register.
+     *
+     * @return true  Register write successful.
+     * @return false I2C communication failed.
+     *
+     * @note This is a low-level helper function used internally by the driver.
+     *       It does not perform parameter validation.
+     */
     bool writeReg(uint8_t reg, uint8_t val);
+
+    /**
+     * @brief Read a single 8-bit register of the ES7210.
+     *
+     * Performs an I2C register read operation and stores the retrieved value
+     * in the provided reference parameter.
+     *
+     * @param reg Register address to read.
+     * @param val Reference variable to store the read 8-bit value.
+     *
+     * @return true  Register read successful.
+     * @return false I2C communication failed.
+     *
+     * @note This is a low-level helper function used internally by the driver.
+     *       It does not perform parameter validation.
+     */
     bool readReg(uint8_t reg, uint8_t& val);
 };
 

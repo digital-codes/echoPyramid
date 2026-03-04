@@ -251,8 +251,9 @@ bool ES8311::mute(bool enable)
     return writeReg(ES8311_DAC_REG31, reg);
 }
 
-// ===== MIC Gain [6] =====
-bool ES8311::setMicGain(uint8_t gain)
+// ===== MIC Gain =====
+bool ES8311::setMicGain(es8311_mic_gain_t gain)
 {
-    return writeReg(ES8311_ADC_REG16, gain);
+    uint8_t reg_val = static_cast<uint8_t>(gain);
+    return writeReg(ES8311_ADC_REG16, reg_val);
 }

@@ -79,6 +79,9 @@ public:
     bool setMCLK(uint32_t freq);
 
 private:
+    I2CBus& _bus;   ///< Reference to I2C bus
+    uint8_t _addr;  ///< I2C address of SI5351
+
     /**
      * @brief Write single register.
      *
@@ -119,9 +122,6 @@ private:
      * @brief Reset PLL to apply new configuration.
      */
     void resetPLL();
-
-    I2CBus& _bus;   ///< Reference to I2C bus
-    uint8_t _addr;  ///< I2C address of SI5351
 };
 
 #endif

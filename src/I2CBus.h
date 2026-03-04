@@ -129,18 +129,86 @@ class I2CBus {
 public:
 #ifdef ARDUINO
 
+    /**
+     * @brief Initialize I2C bus (Arduino environment).
+     *
+     * @param wire Pointer to TwoWire instance (default: &Wire).
+     * @param sda  SDA GPIO number.
+     * @param scl  SCL GPIO number.
+     * @param freq I2C clock frequency in Hz (default 400kHz).
+     *
+     * @return true  Initialization successful.
+     * @return false Initialization failed.
+     *
+     * @note Must be called before any I2C transactions.
+     */
     bool begin(TwoWire* wire = &Wire, uint8_t sda = 38, uint8_t scl = 39, uint32_t freq = 400000);
 
 #else
-
+    /**
+     * @brief Initialize I2C bus (ESP-IDF environment).
+     *
+     * @param port I2C controller port number.
+     * @param sda  SDA GPIO number.
+     * @param scl  SCL GPIO number.
+     * @param freq I2C clock frequency in Hz (default 400kHz).
+     *
+     * @return true  Initialization successful.
+     * @return false Initialization failed.
+     *
+     * @note Internally installs ESP-IDF i2c_master driver.
+     */
     bool begin(i2c_port_num_t port = I2C_NUM_0, int sda = 38, int scl = 39, uint32_t freq = 400000);
 
 #endif
-
+    /**
+     * @brief Write an 8-bit value to a device register.
+     *
+     * Performs a standard I2C register write:
+     *   [DeviceAddr] + [RegisterAddr] + [Value]
+     *
+     * @param addr 7-bit I2C device address.
+     * @param reg  Register address.
+     * @param value 8-bit value to write.
+     *
+     * @return true  Write successful.
+     * @return false I2C communication failed.
+     */
     bool writeReg(uint8_t addr, uint8_t reg, uint8_t value);
 
+    /**
+     * @brief Write multiple bytes to a device register.
+     *
+     * Writes a register address followed by a data buffer.
+     *
+     * @param addr 7-bit I2C device address.
+     * @param reg  Starting register address.
+     * @param data Pointer to data buffer.
+     * @param len  Number of bytes to write.
+     *
+     * @return true  Write successful.
+     * @return false I2C communication failed.
+     *
+     * @note Data pointer must remain valid during transfer.
+     */
     bool writeBytes(uint8_t addr, uint8_t reg, const uint8_t* data, size_t len);
 
+    /**
+     * @brief Read multiple bytes from a device register.
+     *
+     * Performs a register read operation:
+     *   [DeviceAddr] + [RegisterAddr] → repeated start → read bytes
+     *
+     * @param addr 7-bit I2C device address.
+     * @param reg  Starting register address.
+     * @param data Pointer to buffer to store read data.
+     * @param len  Number of bytes to read.
+     *
+     * @return true  Read successful.
+     * @return false I2C communication failed.
+     *
+     * @note Buffer must be pre-allocated with at least @p len bytes.
+     */
     bool readBytes(uint8_t addr, uint8_t reg, uint8_t* data, size_t len);
 
 private:
@@ -158,6 +226,18 @@ private:
     DevEntry _dev_cache[I2C_DEV_CACHE_MAX] = {};
     uint8_t _dev_count                     = 0;
 
+    /**
+     * @brief Get or create cached device handle (ESP-IDF only).
+     *
+     * Uses internal device handle cache to avoid re-adding
+     * the same I2C device multiple times.
+     *
+     * @param addr 7-bit I2C device address.
+     *
+     * @return Valid device handle or nullptr on failure.
+     *
+     * @note Internal helper function.
+     */
     i2c_master_dev_handle_t getDevHandle(uint8_t addr);
 #endif
 };

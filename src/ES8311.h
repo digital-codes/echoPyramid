@@ -104,6 +104,19 @@ struct es8311_coeff_div {
     uint8_t dac_osr;  ///< REG04[7:0]
 };
 
+typedef enum {
+    ES8311_MIC_GAIN_MIN = -1,
+    ES8311_MIC_GAIN_0DB,
+    ES8311_MIC_GAIN_6DB,
+    ES8311_MIC_GAIN_12DB,
+    ES8311_MIC_GAIN_18DB,
+    ES8311_MIC_GAIN_24DB,
+    ES8311_MIC_GAIN_30DB,
+    ES8311_MIC_GAIN_36DB,
+    ES8311_MIC_GAIN_42DB,
+    ES8311_MIC_GAIN_MAX
+} es8311_mic_gain_t;
+
 /* ============================================================
  *  ES8311 Class Definition
  * ============================================================
@@ -144,21 +157,115 @@ public:
      */
     bool begin(uint32_t mclk_hz, uint32_t sample_rate = 44100);
 
+    /**
+     * @brief Set DAC output volume.
+     *
+     * @param volume Volume level (0–100 recommended range)
+     *
+     * @return true  Operation successful
+     * @return false I2C communication failed
+     */
     bool setVolume(uint8_t volume);
+
+    /**
+     * @brief Get current DAC output volume.
+     *
+     * @param volume Reference to variable that will store current volume
+     *
+     * @return true  Operation successful
+     * @return false I2C communication failed
+     */
     bool getVolume(uint8_t& volume);
+
+    /**
+     * @brief Enable or disable DAC mute.
+     *
+     * @param enable true to mute, false to unmute
+     *
+     * @return true  Operation successful
+     * @return false I2C communication failed
+     */
     bool mute(bool enable);
-    bool setMicGain(uint8_t gain);
+
+    /**
+     * @brief Set microphone input gain (Mic PGA gain).
+     *
+     * Configures the internal microphone programmable gain amplifier (PGA)
+     * used for boosting the analog microphone input signal before ADC conversion.
+     *
+     * @param gain Microphone gain level (see @ref es8311_mic_gain_t).
+     *             Supported levels range from 0 dB to 42 dB in 6 dB steps.
+     *
+     * @return true  Gain successfully configured.
+     * @return false Invalid parameter or I2C communication failure.
+     *
+     * @note This function affects only the microphone input path.
+     *       It does not control line-in gain or digital volume.
+     *
+     * @warning Setting a high gain level may cause signal clipping or
+     *          increased noise depending on microphone sensitivity and
+     *          hardware design.
+     *
+     * @see es8311_mic_gain_t
+     */
+    bool setMicGain(es8311_mic_gain_t gain);
 
 private:
     I2CBus& _bus;
     uint8_t _addr;
 
+    /**
+     * @brief Write a single register.
+     *
+     * @param reg Register address
+     * @param val Value to write
+     *
+     * @return true  Write successful
+     * @return false I2C communication failed
+     */
     bool writeReg(uint8_t reg, uint8_t val);
+
+    /**
+     * @brief Read a single register.
+     *
+     * @param reg Register address
+     * @param val Reference to store read value
+     *
+     * @return true  Read successful
+     * @return false I2C communication failed
+     */
     bool readReg(uint8_t reg, uint8_t& val);
 
+    /**
+     * @brief Configure sample frequency related dividers.
+     *
+     * @param mclk_hz     External master clock frequency in Hz
+     * @param sample_rate Target audio sample rate in Hz
+     *
+     * @return true  Configuration successful
+     * @return false Unsupported clock combination
+     */
     bool sampleFrequencyConfig(uint32_t mclk_hz, uint32_t sample_rate);
+
+    /**
+     * @brief Configure internal clock tree.
+     *
+     * @param mclk_hz External master clock frequency in Hz
+     *
+     * @return true  Configuration successful
+     * @return false Unsupported clock configuration
+     */
     bool clockConfig(uint32_t mclk_hz);
 
+    /**
+     * @brief Get clock divider coefficient table entry.
+     *
+     * @param mclk Master clock frequency in Hz
+     * @param rate Sample rate in Hz
+     *
+     * @return Pointer to matching coefficient entry
+     * @return nullptr if no valid configuration exists
+     */
     const es8311_coeff_div* getCoeff(uint32_t mclk, uint32_t rate);
 };
 

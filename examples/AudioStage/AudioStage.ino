@@ -5,23 +5,22 @@
  */
 
 /**
- * @file EchoPyramid_AudioStage_Demo.ino
- * @brief WiFi WAV Playback + Flash Recording + Beat RGB Effects Demo
+ * @brief WAV Playback + Flash Recording + Beat RGB Effects Demo
  *
  * =============================================================
  * Partition Table Reference (Custom)
  * =============================================================
  *
- * # Name,   Type, SubType, Offset,   Size
+ * # Name,   Type, SubType, Offset,   Size,Flags
  * nvs,      data, nvs,     0x9000,   0x5000
  * otadata,  data, ota,     0xE000,   0x2000
  * app0,     app,  ota_0,   0x10000,  0x290000
- * storage,  data, spiffs,  0x2A0000, 0x400000
+ * spiffs,   data, spiffs,  0x2A0000, 0x400000
  * audio,    data, 0x99,    0x700000, 0x100000
  *
  * Description:
- * - "storage"  : SPIFFS for WAV files
- * - "audio"    : Raw flash area for PCM recording storage
+ * - "spiffs"  : SPIFFS for WAV files
+ * - "audio"    : Raw flash area for PCM recording spiffs
  *
  * =============================================================
  *
@@ -52,7 +51,7 @@
 #define RECORD_SECONDS 5      ///< Recording duration (seconds)
 #define FRAME_SIZE     256    ///< Audio frame block size
 #define TOTAL_FRAMES   (SAMPLE_RATE * RECORD_SECONDS)
-
+#define WAV_FILE_PATH  "/file_name.wav"
 /* ============================================================
  *                      Global Variables
  * ============================================================ */
@@ -289,7 +288,16 @@ void effectBeat()
 /* ============================================================
  *                      Audio FreeRTOS Task
  * ============================================================ */
-
+void flushI2SSilence(int frames = FRAME_SIZE * 4)
+{
+    int16_t silence[FRAME_SIZE] = {0};
+    for (int i = 0; i < 40; i++) {
+        ep.write(silence, FRAME_SIZE);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+    ep.codec().mute(true);
+}
 /**
  * @brief Dedicated audio processing task.
  *
@@ -311,59 +319,69 @@ void AudioTask(void *param)
 
         /* ================= WAV Playback ================= */
         if (audioCmd == CMD_PLAY_WAV) {
+            Serial.printf("\n▶️ Start WAV playback: %s\n", wavPath);
+            ep.codec().mute(false);
             File file = SPIFFS.open(wavPath, "r");
-            if (file) {
-                file.seek(44);  // Skip WAV header
+            if (!file) {
+                Serial.println("❌ WAV file not found!");
+                audioBusy = false;
+                continue;
+            }
 
-                int16_t buffer[FRAME_SIZE * 2];
+            file.seek(44);  // Skip WAV header
 
-                while (file.available()) {
-                    int bytesRead = file.read((uint8_t *)buffer, FRAME_SIZE * 2 * sizeof(int16_t));
+            int16_t buffer[FRAME_SIZE * 2];
 
-                    int frames = bytesRead / (2 * sizeof(int16_t));
+            while (file.available()) {
+                int bytesRead = file.read((uint8_t *)buffer, FRAME_SIZE * 2 * sizeof(int16_t));
+                int frames    = bytesRead / (2 * sizeof(int16_t));
 
-                    if (frames > 0) {
-                        int16_t mono[FRAME_SIZE];
-
-                        for (int i = 0; i < frames; i++) mono[i] = ((int32_t)buffer[i * 2] + buffer[i * 2 + 1]) / 2;
-
-                        detectBeat(mono, frames);
-                        ep.write(mono, frames);
+                if (frames > 0) {
+                    int16_t mono[FRAME_SIZE];
+                    for (int i = 0; i < frames; i++) {
+                        mono[i] = ((int32_t)buffer[i * 2] + buffer[i * 2 + 1]) / 2;
                     }
 
-                    vTaskDelay(1);  ///< Yield CPU
+                    detectBeat(mono, frames);
+                    ep.write(mono, frames);
                 }
 
-                file.close();
+                vTaskDelay(1);  ///< Yield CPU
             }
+
+            file.close();
 
             beatEnabRGB = false;
             g_isBeat    = false;
+            flushI2SSilence();
+            Serial.println("⏹ WAV playback finished");
         }
 
         /* ================= Record + Playback ================= */
         else if (audioCmd == CMD_RECORD) {
-            beatEnabRGB = false;
+            Serial.println("\n🎙 Start recording...");
 
+            beatEnabRGB          = false;
             uint32_t writeOffset = 0;
             int recorded         = 0;
-
             uint32_t recordBytes = TOTAL_FRAMES * sizeof(int16_t);
-
-            uint32_t eraseSize = (recordBytes + 4095) & ~4095;
+            uint32_t eraseSize   = (recordBytes + 4095) & ~4095;
 
             esp_partition_erase_range(audioPartition, 0, eraseSize);
 
             while (recorded < TOTAL_FRAMES) {
                 ep.read(mic, ref, FRAME_SIZE);
-
                 esp_partition_write(audioPartition, writeOffset, mic, FRAME_SIZE * sizeof(int16_t));
 
                 writeOffset += FRAME_SIZE * sizeof(int16_t);
                 recorded += FRAME_SIZE;
             }
 
+            Serial.println("✅ Recording finished");
+
             delay(200);
+            ep.codec().mute(false);
+            Serial.println("▶️ Start playback...");
 
             int16_t playBuf[FRAME_SIZE];
             uint32_t readOffset = 0;
@@ -377,13 +395,14 @@ void AudioTask(void *param)
                 readOffset += FRAME_SIZE * sizeof(int16_t);
                 played += FRAME_SIZE;
             }
+            flushI2SSilence();
+            Serial.println("⏹ Playback finished");
         }
 
         audioCmd  = CMD_NONE;
         audioBusy = false;
     }
 }
-
 /* ============================================================
  *                      Setup
  * ============================================================ */
@@ -449,7 +468,7 @@ void loop()
             case 1:
                 currentEffect = EFFECT_RAINBOW;
                 Serial.printf("touch1 EFFECT_RAINBOW\n");
-                strcpy(wavPath, "/111111.wav");
+                strcpy(wavPath, WAV_FILE_PATH);
                 beatEnabRGB = false;
                 audioCmd    = CMD_PLAY_WAV;
                 xTaskNotifyGive(audioTaskHandle);
@@ -470,7 +489,7 @@ void loop()
             case 4:
                 currentEffect = EFFECT_BEAT;
                 Serial.printf("touch4 EFFECT_BEAT\n");
-                strcpy(wavPath, "/111111.wav");
+                strcpy(wavPath, WAV_FILE_PATH);
                 beatEnabRGB = true;
                 audioCmd    = CMD_PLAY_WAV;
                 xTaskNotifyGive(audioTaskHandle);

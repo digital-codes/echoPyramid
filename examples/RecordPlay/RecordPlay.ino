@@ -5,7 +5,6 @@
  */
 
 /**
- * @file EchoPyramid_RecordPlay_Demo.ino
  * @brief M5EchoPyramid 5-second Record & Playback Demo with Rainbow RGB Effect
  *
  * This demo performs:
