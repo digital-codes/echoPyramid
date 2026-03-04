@@ -38,16 +38,16 @@
  * ============================================================ */
 
 /** @brief Audio sample rate (Hz) */
-#define SAMPLE_RATE    44100
+#define SAMPLE_RATE 44100
 
 /** @brief Recording duration in seconds */
 #define RECORD_SECONDS 5
 
 /** @brief Audio frame size per read/write */
-#define FRAME_SIZE     256
+#define FRAME_SIZE 256
 
 /** @brief Total number of audio samples */
-#define TOTAL_FRAMES   (SAMPLE_RATE * RECORD_SECONDS)
+#define TOTAL_FRAMES (SAMPLE_RATE * RECORD_SECONDS)
 
 /* ============================================================
  *                      Global Variables
@@ -90,12 +90,36 @@ void hsv2rgb(float h, float s, float v, uint8_t &r, uint8_t &g, uint8_t &b)
     float r1, g1, b1;
 
     switch (i % 6) {
-        case 0: r1 = v; g1 = t; b1 = p; break;
-        case 1: r1 = q; g1 = v; b1 = p; break;
-        case 2: r1 = p; g1 = v; b1 = t; break;
-        case 3: r1 = p; g1 = q; b1 = v; break;
-        case 4: r1 = t; g1 = p; b1 = v; break;
-        default:r1 = v; g1 = p; b1 = q; break;
+        case 0:
+            r1 = v;
+            g1 = t;
+            b1 = p;
+            break;
+        case 1:
+            r1 = q;
+            g1 = v;
+            b1 = p;
+            break;
+        case 2:
+            r1 = p;
+            g1 = v;
+            b1 = t;
+            break;
+        case 3:
+            r1 = p;
+            g1 = q;
+            b1 = v;
+            break;
+        case 4:
+            r1 = t;
+            g1 = p;
+            b1 = v;
+            break;
+        default:
+            r1 = v;
+            g1 = p;
+            b1 = q;
+            break;
     }
 
     r = r1 * 255;
@@ -152,12 +176,9 @@ void recordAndPlay()
 
     /* ---------------- Recording ---------------- */
     while (recorded < TOTAL_FRAMES) {
-
         ep.read(mic, ref, FRAME_SIZE);
 
-        memcpy(recordBuffer + recorded,
-               mic,
-               FRAME_SIZE * sizeof(int16_t));
+        memcpy(recordBuffer + recorded, mic, FRAME_SIZE * sizeof(int16_t));
 
         recorded += FRAME_SIZE;
     }

@@ -88,8 +88,8 @@ bool ES7210::begin(uint32_t mclk_hz, uint32_t sample_rate, uint8_t mic_mask)
     // Bit[6] = 1 enables the simulation of reference voltage, Bit[1] = 1 enables the simulation of power supply
     writeReg(ES7210_ANALOG_REG40, 0x42);
 
-// REG41: MIC1/2 Bias Voltage Enable
-// Bits [6:4] = 111 represent the bias voltage level, Bit [3] = 0, and Bits [2:0] = bias enable.
+    // REG41: MIC1/2 Bias Voltage Enable
+    // Bits [6:4] = 111 represent the bias voltage level, Bit [3] = 0, and Bits [2:0] = bias enable.
     writeReg(ES7210_MIC12_BIAS_REG41, 0x70);
 
     // REG42: MIC3/4 Bias voltage enable
