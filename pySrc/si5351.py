@@ -9,9 +9,44 @@ Driver for the SI5351 programmable clock generator.
 Generates the MCLK required by the ES7210 and ES8311 codecs.
 
 Supported MCLK outputs:
+    2,048,000 Hz  → 8 kHz audio
     4,096,000 Hz  → 16 kHz audio
    11,289,600 Hz  → 44.1 kHz audio
    12,288,000 Hz  → 48 kHz audio
+
+
+Chip: SI5351A-B-GTR
+    Crytal only, Rev B, GT = 10-MSOP*
+Crytal: 27 MHz
+
+Output clock CLK1 is used for MCLK. CLK0 and CLK2 are powered down.
+   
+2.1. PLL Selection
+If spread spectrum is not enabled, either of the two PLLs may be used as the source for any outputs of the
+Si5351A. If both XTAL and CLKIN input options are used simultaneously (Si5351C only), then one PLL must be
+reserved for use with CLKIN and one for use with the XTAL.
+Note: PLLA must be used for any spread spectrum-enabled outputs. PLLB must be used for any VCXO outputs.
+
+2.1.1. Selecting the Proper VCO Frequencies and Divide Ratios
+The general criteria below may be used to set the VCO frequencies. This is a general model, and individual
+applications may require some modification.
+    1. Valid Multisynth divider ratios are 4, 6, 8, and any fractional value between 8 + 1/1,048,575 and 2048. This
+    means that if any output is greater than 112.5 MHz (900 MHz/8), then this output frequency sets one of the
+    VCO frequencies.
+    2. For the frequencies where jitter is a concern make the output Multisynth divide ratio an integer. If possible,
+    make both output and feedback Multisynth ratios integers.
+    3. Once criteria 1 and 2 are satisfied, try to select as many integer output Multisynth ratios as possible.
+
+2.2. Output Clock Pin Assignment (Optional)
+Some customers may wish to have full control of output clock pin assignment. The guidelines below may be used
+to assign clocks to pins on the device.
+    1. Equal output frequencies should share a VDDO bank (e.g., CLK0&1, CLK2&3, etc.) whenever possible in
+    order to ensure minimal jitter due to PCB crosstalk.
+    2. Isolate unique output frequencies on individual VDDO bank if possible. For example, if the four outputs are
+    25 MHz, 25 MHz, 27 MHz, and 74.25 MHz, then place them on CLK0, CLK1, CLK2, and CLK4,
+    respectively.
+    3. Otherwise, use all necessary CLK channels based on the required frequency plan.
+
 """
 
 from i2c_bus import I2CBus
@@ -56,7 +91,7 @@ class SI5351:
     def set_mclk(self, freq: int) -> bool:
         """Set master-clock output frequency.
 
-        :param freq: MCLK frequency in Hz (4096000 / 11289600 / 12288000).
+        :param freq: MCLK frequency in Hz (2_048_000 / 4_096_000 / 11_289_600 / 12_288_000).
         :return: True on success.
         """
         if freq == 11_289_600:   # 44100 × 256
@@ -65,16 +100,18 @@ class SI5351:
             return self._set_pll(884_736_000, 72)
         if freq == 4_096_000:    # 16000 × 256
             return self._set_pll(884_736_000, 216)
+        if freq == 2_048_000:    # 8000 × 256
+            return self._set_pll(884_736_000, 432)  # 2*216
         print("[SI5351] Unsupported MCLK: {} Hz".format(freq))
         return False
 
     def set_sample_rate(self, sample_rate: int) -> bool:
         """Configure MCLK for a given audio sample rate.
 
-        :param sample_rate: 16000, 44100, or 48000 Hz.
+        :param sample_rate: 8000, 16000, 44100, or 48000 Hz.
         :return: True on success.
         """
-        mapping = {16000: 4_096_000, 44100: 11_289_600, 48000: 12_288_000}
+        mapping = {8000: 2_048_000, 16000: 4_096_000, 44100: 11_289_600, 48000: 12_288_000}
         if sample_rate not in mapping:
             return False
         return self.set_mclk(mapping[sample_rate])
@@ -114,6 +151,8 @@ class SI5351:
         self._bus.write_bytes(self._addr, 26, bytes(pll_buf))
 
         # Multisynth1 (integer mode) → CLK1
+        # Setting start at register 50.
+        # R52 is output divider
         MS_P1 = 128 * ms_div - 512
         ms_buf = bytearray(8)
         ms_buf[0] = 0x00
