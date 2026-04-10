@@ -28,7 +28,7 @@ from stm32_ctrl import STM32Ctrl
 from aw87559 import AW87559
 
 # Supported sample rates
-_SUPPORTED_RATES = (16000, 44100, 48000)
+_SUPPORTED_RATES = (8000, 16000, 44100, 48000)  # 8k experimental
 
 
 class M5EchoPyramid:
