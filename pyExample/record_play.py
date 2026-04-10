@@ -33,16 +33,30 @@ sys.path.insert(0, '/pySrc')   # adjust if pySrc is mounted elsewhere
 import time
 import struct
 
+import math
+
 from m5echo_pyramid import M5EchoPyramid
+
+s3rcam_config = {
+    'i2c_id': 0,
+    'sda': 38,
+    'scl': 39,
+    'bclk': 6,
+    'lrck': 8,
+    'dout': 5,
+    'din': 7,
+}
+
+
 
 # ------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------
 
-SAMPLE_RATE    = 44100   # Hz
-RECORD_SECONDS = 5       # seconds
+SAMPLE_RATE    = 16000   # Hz
+RECORD_SECONDS = 3       # seconds
 FRAME_SIZE     = 256     # samples per read/write call
-TOTAL_FRAMES   = SAMPLE_RATE * RECORD_SECONDS   # 220 500 samples
+TOTAL_FRAMES   = SAMPLE_RATE * RECORD_SECONDS   # 132 300 samples
 
 # ------------------------------------------------------------------
 # Global state
@@ -132,25 +146,58 @@ def record_and_play():
     print("Playback Done.")
     recording_busy = False
 
+# ------------------------------------------------------------------
+# sine wave test
+# ------------------------------------------------------------------
+def generate_sine_wave(freq_hz):
+    """Generate a 1-second 16-bit mono sine wave at the given frequency."""
+    global record_buffer
+    buf_view = memoryview(record_buffer)
+
+    # This code snippet is generating a 1-second 16-bit mono sine wave at a given frequency. Here's a
+    # breakdown of what each line is doing:
+    for i in range(SAMPLE_RATE * RECORD_SECONDS):
+        t = i / SAMPLE_RATE
+        sample = int(32767 * 0.5 * math.sin(2 * math.pi * freq_hz * t))
+        struct.pack_into('<h', buf_view, i * 2, sample)
+    print("Sine wave generated at {} Hz.".format(freq_hz))
+
+def play_sine_wave():
+    """Play the sine wave currently in record_buffer."""
+    global record_buffer
+
+    total_frames = len(record_buffer) // 2
+    print("Playing sine wave ({} frames)...".format(total_frames))
+    played = 0
+    buf_view = memoryview(record_buffer)
+    print("Playing sine wave...")
+    while played < total_frames:
+        chunk_frames = min(FRAME_SIZE, total_frames - played)
+        chunk = buf_view[played * 2 : played * 2 + chunk_frames * 2]
+        ep.write(chunk, chunk_frames)
+        played += chunk_frames
+    print("Sine wave playback done.")
+
+
 
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
 
-def setup():
+def setup(config):
     """Initialise hardware — call once at startup."""
     global record_buffer
 
     ep.begin(
-        i2c_id=0,
-        sda=38, scl=39,
-        bclk=6, lrck=8, dout=5, din=7,
+        i2c_id=config['i2c_id'],
+        sda=config['sda'], scl=config['scl'],
+        bclk=config['bclk'], lrck=config['lrck'], dout=config['dout'], din=config['din'],
         sample_rate=SAMPLE_RATE,
     )
 
-    ep.codec.set_volume(50)
+    ep.codec.set_volume(150)
     ep.codec.mute(False)
-    ep.ctrl.set_brightness(1, 100)
+    ep.ctrl.set_brightness(1, 30)
     ep.ctrl.set_brightness(2, 100)
 
     # Allocate recording buffer: TOTAL_FRAMES × 2 bytes (16-bit mono)
@@ -162,20 +209,25 @@ def setup():
 
     print("System Ready.")
 
-
 def loop():
     """Call repeatedly from the main loop."""
     effect_rainbow()
-
     for i in range(1, 5):
         if ep.ctrl.is_pressed(i):
-            record_and_play()
+            print("Button {} pressed.".format(i))
+            if i < 3:
+                record_and_play()
+            else:
+                generate_sine_wave(1000)
+                ep.codec.mute(False)
+                print("Start Playback...")
+                play_sine_wave()
             break
-
     time.sleep_ms(30)
+        
 
 
 if __name__ == "__main__":
-    setup()
+    setup(config=s3rcam_config)
     while True:
         loop()
