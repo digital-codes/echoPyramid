@@ -56,7 +56,7 @@ s3rcam_config = {
 SAMPLE_RATE    = 16000   # Hz
 RECORD_SECONDS = 3       # seconds
 FRAME_SIZE     = 256     # samples per read/write call
-TOTAL_FRAMES   = SAMPLE_RATE * RECORD_SECONDS   # 132 300 samples
+TOTAL_FRAMES   = SAMPLE_RATE * RECORD_SECONDS   # 48 000 samples
 
 # ------------------------------------------------------------------
 # Global state
