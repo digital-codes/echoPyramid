@@ -43,9 +43,10 @@ s3rcam_config = {
     'scl': 39,
     'bclk': 6,
     'lrck': 8,
-    'dout': 5,
-    'din': 7,
+    'dout': 7,
+    'din': 5,
 }
+
 
 
 
@@ -195,7 +196,7 @@ def setup(config):
         sample_rate=SAMPLE_RATE,
     )
 
-    ep.codec.set_volume(150)
+    ep.codec.set_volume(40)
     ep.codec.mute(False)
     ep.ctrl.set_brightness(1, 30)
     ep.ctrl.set_brightness(2, 100)

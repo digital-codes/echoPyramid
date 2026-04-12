@@ -147,7 +147,7 @@ class AW87559:
     # ------------------------------------------------------------------
 
     def _write_reg(self, reg: int, val: int) -> bool:
-        return self._bus.write_bytes(self._addr, reg, bytes([val]))
+        return self._bus.write_bytes(self._addr, reg, bytes([val & 0xFF]))
 
     def _read_reg(self, reg: int):
         data = self._bus.read_bytes(self._addr, reg, 1)
@@ -158,8 +158,8 @@ class AW87559:
         val = self._read_reg(reg)
         if val is None:
             return False
-        val &= ~mask & 0xFF
-        val |= value & mask
+        val = (val & ~(mask & 0xFF)) & 0xFF
+        val = (val | (value & mask)) & 0xFF
         return self._write_reg(reg, val)
 
     # ------------------------------------------------------------------
@@ -178,7 +178,7 @@ class AW87559:
         self.set_software_enable(True)
         self.set_boost_enable(True)
         self.set_pa_enable(True)
-        self.set_pa_gain(AW87559_GAIN_16_5DB)
+        self.set_pa_gain(AW87559_GAIN_3DB) # was 16_5
         return True
 
     # ------------------------------------------------------------------
